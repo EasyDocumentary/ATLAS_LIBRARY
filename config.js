@@ -1,6 +1,7 @@
-// Configuration publique : ces valeurs sont diffusées dans le navigateur.
-// Ne JAMAIS mettre la clé service_role ou une chaîne de connexion PostgreSQL ici.
+// Paramètres publics de connexion à ATLAS LIBRARY (Supabase).
+// La sécurité est assurée par Auth + RLS côté PostgreSQL.
+// Ne jamais inclure une clé secrète, service_role ou un mot de passe ici.
 window.ATLAS_CONFIG = {
-  supabaseUrl: '',             // ex. https://votreprojet.supabase.co
-  publishableKey: ''           // clé publique publishable (ou ancien anon)
+  supabaseUrl: 'https://nuiwcgduuemknnluhyek.supabase.co',
+  publishableKey: 'sb_publishable_9c8OZAey5BfONNIDzlRw3A_Qg0n3FdQ'
 };
