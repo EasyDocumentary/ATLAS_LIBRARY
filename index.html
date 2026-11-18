@@ -480,6 +480,8 @@ let data=loadLocalData();
 const ATLAS_LOCAL_SNAPSHOT=structuredClone(data);
 const atlasShared=window.ATLAS_SHARED;
 const atlasSharedMode=Boolean(atlasShared?.enabled);
+// En mode collaboratif, ne jamais afficher les données propres à ce navigateur avant authentification.
+if(atlasSharedMode)data={};
 function atlasCanEdit(){return !atlasSharedMode||['admin','editor'].includes(atlasShared?.member?.role)}
 function atlasCanDelete(){return !atlasSharedMode||atlasShared?.member?.role==='admin'}
 function atlasUpdateAccess(){
@@ -797,7 +799,7 @@ bootGlobe();
 atlasUpdateAccess();
 if(atlasSharedMode){
  atlasShared.start({
-  catalog:NEW_CATALOG,
+  catalog:freshCatalog(),
   localSnapshot:ATLAS_LOCAL_SNAPSHOT,
   notify:toast,
   onData:records=>{
