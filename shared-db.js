@@ -37,14 +37,14 @@ function sync(){if(subscription)db.removeChannel(subscription);subscription=db.c
 function text(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function toolbar(){
  let box=el("atlasSharedToolbar");if(!box){box=document.createElement("div");box.id="atlasSharedToolbar";box.className="atlas-shared-tools";document.querySelector(".sidebar")?.appendChild(box)}
- box.innerHTML="<strong>☁ Base partagée · "+text(member.display_name)+" ("+text(member.role)+")</strong>"+'<button id="atlasReload">Actualiser</button>'+(member.role==="admin"?'<button id="atlasSeed">Importer le catalogue</button><button id="atlasImportResearched">+ 19 diffuseurs vérifiés</button><button id="atlasImportLocal">Importer données locales</button>':"")+'<button id="atlasLogout">Déconnexion</button>';
+ box.innerHTML="<strong>☁ Base partagée · "+text(member.display_name)+" ("+text(member.role)+")</strong>"+'<button id="atlasReload">Actualiser</button>'+(member.role==="admin"?'<button id="atlasSeed">Importer le catalogue</button><button id="atlasImportResearched">+ 6 acheteurs documentaires</button><button id="atlasImportLocal">Importer données locales</button>':"")+'<button id="atlasLogout">Déconnexion</button>';
  el("atlasReload").onclick=()=>refresh().then(()=>notify("Base actualisée")).catch(e=>alert(e.message));
  el("atlasLogout").onclick=async()=>{await db.auth.signOut();logout()};
  if(member.role==="admin"){
   el("atlasSeed").onclick=async()=>{if(!confirm("Importer les diffuseurs du catalogue sans écraser les fiches existantes ?"))return;try{await importRecords(callbacks.catalog,true);await refresh();notify("Catalogue importé")}catch(e){alert(e.message)}};
   el("atlasImportResearched").onclick=async()=>{
    const button=el("atlasImportResearched");
-   if(!confirm("Ajouter 19 diffuseurs documentaires sourcés (10 pays) ? Les fiches existantes ne seront pas modifiées."))return;
+   if(!confirm("Ajouter 6 acheteurs de documentaires sourcés (6 pays), classés par potentiel 52 minutes ? Les fiches existantes ne seront pas modifiées."))return;
    button.disabled=true;
    try{
     const response=await fetch("data/broadcasters-research-2026-11.json",{cache:"no-store"});
