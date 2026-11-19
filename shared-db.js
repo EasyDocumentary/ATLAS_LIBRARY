@@ -37,11 +37,37 @@ function sync(){if(subscription)db.removeChannel(subscription);subscription=db.c
 function text(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function toolbar(){
  let box=el("atlasSharedToolbar");if(!box){box=document.createElement("div");box.id="atlasSharedToolbar";box.className="atlas-shared-tools";document.querySelector(".sidebar")?.appendChild(box)}
- box.innerHTML="<strong>☁ Base partagée · "+text(member.display_name)+" ("+text(member.role)+")</strong>"+'<button id="atlasReload">Actualiser</button>'+(member.role==="admin"?'<button id="atlasSeed">Importer le catalogue</button><button id="atlasImportLocal">Importer données locales</button>':"")+'<button id="atlasLogout">Déconnexion</button>';
+ box.innerHTML="<strong>☁ Base partagée · "+text(member.display_name)+" ("+text(member.role)+")</strong>"+'<button id="atlasReload">Actualiser</button>'+(member.role==="admin"?'<button id="atlasSeed">Importer le catalogue</button><button id="atlasImportResearched">+ 19 diffuseurs vérifiés</button><button id="atlasImportLocal">Importer données locales</button>':"")+'<button id="atlasLogout">Déconnexion</button>';
  el("atlasReload").onclick=()=>refresh().then(()=>notify("Base actualisée")).catch(e=>alert(e.message));
  el("atlasLogout").onclick=async()=>{await db.auth.signOut();logout()};
  if(member.role==="admin"){
   el("atlasSeed").onclick=async()=>{if(!confirm("Importer les diffuseurs du catalogue sans écraser les fiches existantes ?"))return;try{await importRecords(callbacks.catalog,true);await refresh();notify("Catalogue importé")}catch(e){alert(e.message)}};
+  el("atlasImportResearched").onclick=async()=>{
+   const button=el("atlasImportResearched");
+   if(!confirm("Ajouter 19 diffuseurs documentaires sourcés (10 pays) ? Les fiches existantes ne seront pas modifiées."))return;
+   button.disabled=true;
+   try{
+    const response=await fetch("data/broadcasters-research-2026-11.json",{cache:"no-store"});
+    if(!response.ok)throw new Error("Liste de diffuseurs indisponible ("+response.status+")");
+    const document=await response.json();
+    if(document.format!=="docu-atlas-v2"||!document.data||typeof document.data!=="object")throw new Error("Format de données incorrect");
+    const existing=await readAll();
+    const normalize=s=>String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim().toLowerCase();
+    const incoming={};let duplicates=0;
+    for(const [iso,rows] of Object.entries(document.data)){
+     const known=new Set((existing[iso]||[]).map(x=>normalize(x.name)));
+     incoming[iso]=[];
+     for(const row of rows){
+      if(!row||!row.id||!row.name)continue;
+      if(known.has(normalize(row.name))){duplicates++;continue}
+      incoming[iso].push(row);known.add(normalize(row.name));
+     }
+    }
+    const count=await importRecords(incoming,true);await refresh();
+    notify(count+" diffuseurs ajoutés à Supabase"+(duplicates?" ("+duplicates+" doublons ignorés)":""));
+   }catch(error){alert("Enrichissement impossible : "+String(error.message||error))}
+   finally{button.disabled=false}
+  };
   el("atlasImportLocal").onclick=async()=>{if(!confirm("Transférer les modifications de CE navigateur à la base commune ? Faites une sauvegarde JSON auparavant."))return;try{await importRecords(callbacks.localSnapshot,false);await refresh();notify("Données locales importées")}catch(e){alert(e.message)}};
  }
 }
