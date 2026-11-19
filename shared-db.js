@@ -50,7 +50,7 @@ async function authorize(){
  const {data:{user},error}=await db.auth.getUser();if(error||!user){lock("Connectez-vous pour accéder aux données.");return}
  const {data:m,error:memberError}=await db.from("atlas_team_members").select("user_id,email,display_name,role,active").eq("user_id",user.id).maybeSingle();if(memberError)throw memberError;
  if(!m?.active){lock("Compte non autorisé : demandez votre accès à l’administrateur.");return}
- member=m;const records=await readAll();ready=true;callbacks.onData?.(records);authUI().hidden=true;toolbar();sync();notify("Base partagée connectée")
+ member=m;const records=await readAll();ready=true;callbacks.onData?.(records);authUI().hidden=true;toolbar();sync();notify("Base partagée connectée");callbacks.onAuthorized?.()
 }
 async function start(options){callbacks=options||{};if(!enabled)return false;lock("Connexion au serveur sécurisé…");try{await loadSdk();db=window.supabase.createClient(cfg.supabaseUrl,cfg.publishableKey,{auth:{persistSession:true,autoRefreshToken:true}});db.auth.onAuthStateChange(event=>{if(event==="SIGNED_OUT")logout()});await authorize()}catch(e){lock("Initialisation impossible : "+String(e.message||e))}return true}
 async function saveRecord(iso,item){if(!ready||!["admin","editor"].includes(member?.role))throw new Error("Modification non autorisée");const {error}=await db.from("atlas_channels").upsert({country_code:iso,record_id:item.id,payload:item},{onConflict:"country_code,record_id"});if(error)throw error}
