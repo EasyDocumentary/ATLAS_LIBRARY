@@ -681,6 +681,15 @@ el('closeDetail').addEventListener('click',closeDetail);el('saveBtn').addEventLi
  const file=e.target.files[0];if(!file)return;
  try{
   const parsed=JSON.parse(await file.text());
+  if(parsed.format==='atlas-private-client-archives-v1'){
+   if(!atlasSharedMode||atlasShared?.member?.role!=='admin')throw Error('Archives privées : connexion administrateur requise');
+   if(!confirm('Importer les archives clients historiques dans Supabase ? Les notes existantes seront conservées. Coordonnées et conditions commerciales anciennes : à vérifier avant toute utilisation.'))return;
+   const result=await atlasShared.importClientArchives(parsed);
+   const message=result.created+' diffuseurs créés · '+result.updated+' fiches enrichies · '+result.unchanged+' déjà importées'+(result.ambiguous?' · '+result.ambiguous+' ambiguïtés ignorées':'');
+   toast(message);
+   alert('Archives clients : '+message+'. Les données restent dans Supabase et ne sont pas ajoutées au dépôt public.');
+   return;
+  }
   const incoming=['docu-atlas-v1','docu-atlas-v2'].includes(parsed.format)?parsed.data:parsed;
   if(!isRecordSet(incoming))throw Error('format incorrect');
   if(atlasSharedMode){
