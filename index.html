@@ -116,7 +116,7 @@
 @media(max-width:650px){.kw-intro-title{font-size:clamp(52px,14vw,92px)}.kw-intro-sub{letter-spacing:.19em}.kw-intro-skip{right:14px;bottom:15px}}
 @media(prefers-reduced-motion:reduce){.kwanza-intro *, .kwanza-intro::before{animation:none!important;transition:none!important}.kw-intro-k,.kw-intro-rest,.kw-intro-sub{opacity:1!important;max-width:none!important;filter:none!important}.kw-intro-rest span{transform:none}.kw-intro-plus{display:none}}
 </style></head><body>
-<div id="kwanzaIntro" class="kwanza-intro" role="dialog" aria-label="Introduction KWANZA">
+<div id="kwanzaIntro" class="kwanza-intro" role="dialog" hidden aria-label="Introduction KWANZA">
  <div class="kw-intro-sweep" aria-hidden="true"></div>
  <div class="kw-intro-center"><div class="kw-intro-title" aria-label="KWANZA"><span class="kw-intro-k">K<span class="kw-intro-plus" aria-hidden="true">+</span></span><span class="kw-intro-rest"><span>WANZA</span></span></div><div class="kw-intro-sub">Documentary Distribution Network</div></div>
  <button type="button" id="skipKwanzaIntro" class="kw-intro-skip" aria-label="Passer l'introduction">Passer l’intro ↗</button>
@@ -547,10 +547,29 @@ function finishKwanzaIntro(){
 }
 function startKwanzaIntro(){
  const intro=el('kwanzaIntro');if(!intro)return;
- el('skipKwanzaIntro').addEventListener('click',finishKwanzaIntro);
- intro.addEventListener('keydown',event=>{if(event.key==='Escape')finishKwanzaIntro()});
+ if(kwanzaIntroTimer!==null){clearTimeout(kwanzaIntroTimer);kwanzaIntroTimer=null}
+ intro.classList.remove('kw-intro-exit');
+ intro.hidden=false;
+ intro.setAttribute('aria-hidden','false');
+ // Réinitialiser les animations à chaque connexion, même après une déconnexion.
+ intro.querySelectorAll('.kw-intro-k,.kw-intro-plus,.kw-intro-rest,.kw-intro-rest span,.kw-intro-sub,.kw-intro-sweep').forEach(node=>{
+  node.style.animation='none';void node.offsetWidth;node.style.animation='';
+ });
+ if(!intro.dataset.handlersAttached){
+  el('skipKwanzaIntro').addEventListener('click',finishKwanzaIntro);
+  intro.addEventListener('keydown',event=>{if(event.key==='Escape')finishKwanzaIntro()});
+  intro.dataset.handlersAttached='true';
+ }
  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){finishKwanzaIntro();return}
  kwanzaIntroTimer=setTimeout(finishKwanzaIntro,2950);
+}
+function resetKwanzaIntro(){
+ const intro=el('kwanzaIntro');
+ if(!intro)return;
+ if(kwanzaIntroTimer!==null){clearTimeout(kwanzaIntroTimer);kwanzaIntroTimer=null}
+ intro.classList.remove('kw-intro-exit');
+ intro.hidden=true;
+ intro.setAttribute('aria-hidden','true');
 }
 function renderProfiles(){
  const grid=el('profileGrid'); if(!grid)return;
@@ -643,7 +662,7 @@ function openModal(){if(!atlasCanEdit()){toast('Vous n’avez pas les droits de 
 }
 function download(content,filename,type){const blob=new Blob([content],{type}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(url),800)}function csv(){const cols=['country','name','type','website','genres','themes','slots','formats','needs','rights','buyer','email','status','priority','owner','lastContact','nextFollowup','notes','source','quality','sourceDate','evidence'];let rows=[cols.join(';')];Object.entries(data).forEach(([iso,items])=>items.forEach(c=>rows.push(cols.map(k=>'"'+String(k==='country'?(names[iso]||iso):(k==='themes'?(c.themes||[]).join(' | '):(c[k]||''))).replace(/"/g,'""')+'"').join(';'))));download('\ufeff'+rows.join('\r\n'),'atlas-library-prospects.csv','text/csv;charset=utf-8')}
 el('countrySelect').addEventListener('change',e=>selectCountry(e.target.value));el('search').addEventListener('input',renderChannels);el('contactSearch').addEventListener('input',renderChannels);el('switchProfile')?.addEventListener('click',openProfileGate);
-renderProfiles();startKwanzaIntro();renderThemePickerOptions('themeFilterOptions',activeThemes);refreshMainThemes();
+renderProfiles();if(!atlasSharedMode)startKwanzaIntro();renderThemePickerOptions('themeFilterOptions',activeThemes);refreshMainThemes();
 el('themeFilterOptions').addEventListener('change',e=>{if(e.target.matches('input[type="checkbox"]')){e.target.checked?activeThemes.add(e.target.value):activeThemes.delete(e.target.value);refreshMainThemes()}});
 el('clearThemes').addEventListener('click',()=>{activeThemes.clear();renderThemePickerOptions('themeFilterOptions',activeThemes);refreshMainThemes();});
 el('themeEditOptions').addEventListener('change',e=>{if(e.target.matches('input[type="checkbox"]')){e.target.checked?draftThemes.add(e.target.value):draftThemes.delete(e.target.value);refreshEditThemes()}});
@@ -808,7 +827,12 @@ if(atlasSharedMode){
    renderChannels();atlasUpdateAccess();
    if(globe)globe.polygonsData(features);
   },
+  onAuthorized:()=>{
+   // L'intro ne démarre qu'après le succès de l'authentification Supabase.
+   startKwanzaIntro();
+  },
   onLogout:()=>{
+   resetKwanzaIntro();
    data={};
    closeDetail();renderChannels();atlasUpdateAccess();
   }
