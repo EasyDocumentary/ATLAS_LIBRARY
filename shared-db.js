@@ -59,5 +59,49 @@ async function importRecords(records,onlyMissing=false){if(!ready||member?.role!
  const all=Object.entries(records||{}).flatMap(([iso,rows])=>Array.isArray(rows)?rows.filter(x=>x?.id&&x.name).map(x=>({country_code:iso,record_id:x.id,payload:x})):[]);const rows=onlyMissing?all.filter(x=>!existing.has(x.country_code+"|"+x.record_id)):all;
  for(let i=0;i<rows.length;i+=100){const {error}=await db.from("atlas_channels").upsert(rows.slice(i,i+100),{onConflict:"country_code,record_id"});if(error)throw new Error("Import partiel "+i+"/"+rows.length+" : "+error.message)}return rows.length
 }
-window.ATLAS_SHARED={enabled,start,saveRecord,deleteRecord,importRecords,refresh,get ready(){return ready},get member(){return member}};
+
+async function importClientArchives(document){
+ if(!ready||member?.role!=="admin")throw new Error("Import des archives réservé à l’administrateur");
+ if(document?.format!=="atlas-private-client-archives-v1"||!Array.isArray(document.records))throw new Error("Fichier d'archives privées invalide");
+ const present=await readAll(),planned=[],result={created:0,updated:0,unchanged:0,ambiguous:0};
+ const normalize=v=>String(v??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+ const slug=v=>normalize(v).replace(/ /g,"-");
+ for(const entry of document.records){
+  const iso=entry.country_code,archive=entry.archive_entries;
+  if(!/^[A-Z]{3}$/.test(iso)||!entry.name||!Array.isArray(archive)||!archive.length)throw new Error("Archive incomplète : "+String(entry.name));
+  const names=new Set([entry.name,...(entry.source_company_names||[])].map(normalize));
+  const matches=(present[iso]||[]).filter(v=>names.has(normalize(v.name)));
+  if(matches.length>1){result.ambiguous++;continue}
+  const marker="[ARCHIVES CLIENTS KWANZA — "+iso+" — "+entry.name+"]";
+  const original=matches[0],existingNote=String(original?.notes||"");
+  if(existingNote.includes(marker)){result.unchanged++;continue}
+  const historical=archive.map(e=>{
+   const lines=["Fiche historique · pages "+(e.pages_source||[]).join(", ")];
+   if(e.contact_source)lines.push("Interlocuteur indiqué dans l'archive : "+e.contact_source);
+   if(e.role_source)lines.push("Fonction historique : "+e.role_source);
+   if(e.email_source)lines.push("E-mail historique non vérifié : "+e.email_source);
+   lines.push(e.texte_source||"");
+   return lines.join("\n");
+  }).join("\n\n---\n\n");
+  const archiveNote=marker+"\n⚠ INFORMATIONS HISTORIQUES NON VÉRIFIÉES (2009–2024). Vérifier l'actualité des contacts, des conditions commerciales et les mentions « PAS TOUCHE » avant toute prospection.\nSource : PDF privé "+String(entry.source_document||"fiches clients")+".\n\n"+historical;
+  const base=original?{...original}:{
+   id:iso+"-archive-"+slug(entry.name),name:entry.name,
+   type:"Diffuseur / partenaire à qualifier",website:"",genres:"",slots:"",
+   formats:"",needs:"",rights:"",buyer:"",email:"",status:"À identifier",
+   priority:"Normale",owner:"",lastContact:"",nextFollowup:"",
+   source:"Archive client privée KWANZA",sourceDate:"Historique 2009–2024",quality:"historical_unverified",evidence:"Fiches commerciales historiques",themes:[]
+  };
+  base.notes=existingNote?existingNote+"\n\n"+archiveNote:archiveNote;
+  planned.push({country_code:iso,record_id:base.id,payload:base});
+  if(original)result.updated++;else result.created++;
+ }
+ for(let i=0;i<planned.length;i+=50){
+  const {error}=await db.from("atlas_channels").upsert(planned.slice(i,i+50),{onConflict:"country_code,record_id"});
+  if(error)throw new Error("Import interrompu : "+error.message);
+ }
+ await refresh();
+ return result;
+}
+
+window.ATLAS_SHARED={enabled,start,saveRecord,deleteRecord,importRecords,importClientArchives,refresh,get ready(){return ready},get member(){return member}};
 })();
